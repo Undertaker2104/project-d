@@ -13,6 +13,11 @@ import lib as lib
 for token in lib.trivial_tokens:
 	lib.frequency_dict[token] = -1
 
+def get_frequent_tokens(text):
+	tokens = lib.tokenize(text)
+	tokens.sort(key=lib.frequency_dict.get, reverse=True)
+	return str.join(", ", tokens[0:2])
+
 subjects = lib.actionscopes.Description.copy()
 subjects = subjects.map(lambda x: [*lib.normalize(x).split()])
 subjects.apply(lambda x: x.sort(key=lib.frequency_dict.get, reverse=True))
@@ -29,4 +34,9 @@ groups = {k: v for (k, v) in groups.items() if len(v) > 1}
 
 if __name__ == "__main__":
 	from pprint import pprint
-	pprint(groups)
+	query = input("Zoek: ")
+	res = groups[get_frequent_tokens(query)]
+	if res:
+		pprint(res)
+	else:
+		print("Geen resultaten")

@@ -1,7 +1,7 @@
 import pandas as _pd
 
 # veel voorkomende maar onbelangrijke tokens
-trivial_tokens = {"aan", "in", "en", "van", "uit", "met", "op", "niet", "de", "voor", "te", "is", "-"}
+trivial_tokens = {"aan", "bij", "na", "in", "en", "het", "van", "een", "uit", "met", "op", "niet", "de", "voor", "te", "is", "-"}
 
 # tokens die niet in GiGaNT staan, meer dan 3 keer in actionscopes, en geen
 # onderdeel/machine zijn
