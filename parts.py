@@ -25,6 +25,28 @@ def desc_get(k):
 	return {*vals} if type(vals) is pd.core.series.Series else [vals]
 
 if __name__ == "__main__":
+	import sys
 	from pprint import pprint
+
+	if len(sys.argv) < 2:
+		print(f"usage {sys.argv[0]} COMMAND ARG")
+		print("commands: groups, list, search [query]")
+
+	command = sys.argv[1]
 	x = {k: [desc_get(d) for d in v] for k, v in part_groups.items()}
-	pprint(x)
+	if command == "groups":
+		pprint(x)
+	elif command == "search":
+		arg = sys.argv[2]
+		y = {k: [(d, desc_get(d)) for d in v] for k, v in part_groups.items()}
+		for part, descs in y.items():
+			if len(descs) == 0:
+				continue
+
+			print(f"{part.upper()}:")
+			for code, desc in descs:
+				print(f"{code}: {desc}")
+	elif command == "list":
+		pprint(x.keys())
+	else:
+		print(f"invalid command '{command}'")
