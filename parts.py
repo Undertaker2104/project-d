@@ -8,17 +8,23 @@
 import pandas as pd
 import lib as lib
 
-part_groups = {p: [] for p in lib.parts}
+part_groups = {p: set() for p in lib.parts}
 
 for code, row in lib.actionscopes.iterrows():
-	description = row["Description"]
-	tokens = lib.tokenize(description)
-	for part in lib.parts:
-		if part in tokens:
-			part_groups[part].append(code)
+	description_x = row["Description_x"]
+	description_y = row["Description_y"]
+	tokens = set(lib.tokenize(description_x));
+	tokens.update(lib.tokenize(description_y))
+	if type(code) is str:
+		for part in lib.parts:
+			if part in tokens:
+				part_groups[part].add(code)
+
+def desc_get(k):
+	vals = lib.actionscopes["Description_x"][k] if k in lib.actionscopes["Description_x"] else lib.actionscopes["Description_y"][k]
+	return {*vals} if type(vals) is pd.core.series.Series else [vals]
 
 if __name__ == "__main__":
 	from pprint import pprint
-	x = {k: [lib.actionscopes["Description"][d]
-	     for d in v] for k, v in part_groups.items()}
+	x = {k: [desc_get(d) for d in v] for k, v in part_groups.items()}
 	pprint(x)
