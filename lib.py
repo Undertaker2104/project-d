@@ -6,7 +6,7 @@ trivial_tokens = set(open("trivial_tokens.txt").read().split('\n'))
 
 # tokens die niet in GiGaNT staan, meer dan 3 keer in merged_data, en geen
 # onderdeel/machine zijn
-ignored_tokens = set(open("ignored.txt").read().split('\n'))
+ignored_tokens = set(open("ignored_tokens.txt").read().split('\n'))
 
 # GiGaNT-Molex 2.0 lexicon
 # cut -f 2,5 molex_22_02_2022.tsv | tr "[:upper:]" "[:lower:]" | uniq > words.txt
