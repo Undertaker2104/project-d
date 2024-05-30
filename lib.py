@@ -13,22 +13,17 @@ ignored_tokens = set(open("data/ignored_tokens.txt").read().split('\n'))
 lem_dict = re.split("\t|\n", open("data/lem_dict.txt").read())
 lem_dict = {k: v for k, v in zip(lem_dict[1::2], lem_dict[0::2])}
 
-lexicon = set(lem_dict.values())
-
-lem_dict["hijsbanden"] = "hijsband"
 # spellcheck
 lem_dict["shuttl"] = "shuttle"
 lem_dict["defekt"] = "defect"
 lem_dict["camarasysteem"] = "camerasysteem"
 
-# GiGaNT-Molex 2.0 lexicon
-# cut -f 2,5 molex_22_02_2022.tsv | tr "[:upper:]" "[:lower:]" | uniq > words.txt
-lem_dict = re.split("\t|\n", open("lem_dict.txt").read())
-lem_dict = {k: v for k, v in zip(lem_dict[1::2], lem_dict[0::2])}
+parts_lem = re.split("\t|\n", open("data/parts_lemmatization.txt").read())
+parts_lem = {k: v for k, v in zip(parts_lem[0::2], parts_lem[1::2])}
+lem_dict.update(parts_lem)
 
 lexicon = set(lem_dict.values())
 
-lem_dict["hijsbanden"] = "hijsband"
 
 def normalize(text):
 	return re.sub("[\[\]()\?]", '', re.sub(", |\.|:|/", ' ', str(text).lower()))
