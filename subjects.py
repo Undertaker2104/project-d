@@ -57,6 +57,7 @@ if __name__ == "__main__":
 		res = set()
 		tokens = get_frequent_tokens(query)
 
+
 		if len(tokens) == 1:
 			for k, d in groups.items():
 				for t in tokens:

@@ -21,6 +21,15 @@ lem_dict["shuttl"] = "shuttle"
 lem_dict["defekt"] = "defect"
 lem_dict["camarasysteem"] = "camerasysteem"
 
+# GiGaNT-Molex 2.0 lexicon
+# cut -f 2,5 molex_22_02_2022.tsv | tr "[:upper:]" "[:lower:]" | uniq > words.txt
+lem_dict = re.split("\t|\n", open("lem_dict.txt").read())
+lem_dict = {k: v for k, v in zip(lem_dict[1::2], lem_dict[0::2])}
+
+lexicon = set(lem_dict.values())
+
+lem_dict["hijsbanden"] = "hijsband"
+
 def normalize(text):
 	return re.sub("[\[\]()\?]", '', re.sub(", |\.|:|/", ' ', str(text).lower()))
 
@@ -32,7 +41,6 @@ def _increment_word_count(text):
 	tokens = tokenize(text)
 	for t in tokens:
 		frequency_dict[t] = frequency_dict.get(t, 0) + 1
-
 
 actionscopes = _pd.read_excel("merged_data.xlsx", index_col="Code")
 actionscopes.Description_x.apply(_increment_word_count)
