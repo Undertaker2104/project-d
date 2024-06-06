@@ -1,5 +1,6 @@
-import excel as excel
 from database import Database
+import excel as excel
+import subjects as sub
 import sys
 
 def cmd_usage(program_name):
@@ -32,7 +33,7 @@ def cmd_update(args):
 	desc_col = table.get_col_index("Description")
 	db = Database()
 	db.open_else_create("data.db")
-	rows = db.rows_that_arent_in_table(sheet_type[:-1], code_col, table.table)
+	rows = db.rows_that_arent_in_table(sheet_type, code_col, table.table)
 	# In order to get the keywords from text, we need to figure what tokens have
 	# the highest frequency. tokenize the text, increment frequency count for
 	# each token. Finally we can query the frequency for each token and find the
@@ -40,7 +41,11 @@ def cmd_update(args):
 	# as well. then we can take every token in the table, and see which ones are
 	# the most frequent. the frequency table could just be a view that groups and
 	# counts the token-code table. dont know if performance will be good enough.
-	print(len(rows))
+
+	# update token frequencies
+	descs = [r[desc_col] for r in table.table]
+	freqs = sub.get_token_frequencies(descs)
+	db.update_token_frequencies(freqs)
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:

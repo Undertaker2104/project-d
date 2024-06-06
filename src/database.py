@@ -15,6 +15,23 @@ class Database:
 				not_in_db.append(row)
 		return not_in_db
 
+	def insert_rows(self, db_table, key
+
+	def update_token_frequencies(self, freqs):
+		cur = self.con.cursor()
+		# print(freqs)
+		cur.executemany("""
+			INSERT OR IGNORE INTO token_frequency(
+				token,
+				frequency
+			) VALUES (:token, :frequency)
+			ON CONFLICT	DO UPDATE SET
+				frequency = frequency + :frequency
+			WHERE token = :token
+		""", freqs)
+		cur.close()
+		self.con.commit()
+
 	def close(self):
 		self.con.close()
 
@@ -39,21 +56,25 @@ class Database:
 				memo        TEXT,
 				FOREIGN KEY(code) REFERENCES item(code)
 			);
-			CREATE TABLE IF NOT EXISTS word_frequency(
-				word      TEXT    PRIMARY KEY,
+			CREATE TABLE IF NOT EXISTS token(
+				token TEXT PRIMARY KEY
+			);
+			CREATE TABLE IF NOT EXISTS token_frequency(
+				token     TEXT    PRIMARY KEY,
 				frequency INTEGER DEFAULT 0
 			);
 			CREATE TABLE IF NOT EXISTS keyword(
-				word TEXT,
-				code TEXT,
-				FOREIGN KEY(word) REFERENCES word_frequency(word),
+				token TEXT,
+				code  TEXT,
+				FOREIGN KEY(token) REFERENCES token(token),
 				FOREIGN KEY(code) REFERENCES item(code),
-				PRIMARY KEY(word, code)
+				PRIMARY KEY(token, code)
 			);
 			CREATE TABLE IF NOT EXISTS part(
 				name TEXT,
 				code TEXT,
 				FOREIGN KEY(code) REFERENCES item(code),
+				FOREIGN KEY(name) REFERENCES token(token),
 				PRIMARY KEY(name, code)
 			);
 			COMMIT;
