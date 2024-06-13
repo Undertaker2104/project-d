@@ -1,5 +1,6 @@
-import pandas as _pd
+import pandas as pd
 import re
+import json
 
 # veel voorkomende maar onbelangrijke tokens
 trivial_tokens = {"aan", "bij", "na", "in", "en", "het", "van", "een", "uit", "met", "op", "niet", "de", "voor", "te", "is", "zijn", "-"}
@@ -18,25 +19,48 @@ lexicon = set(lem_dict.values())
 lem_dict["hijsbanden"] = "hijsband"
 
 def normalize(text):
-	return re.sub(", |\.", ' ', str(text).lower())
+    return re.sub(", |\.", ' ', str(text).lower())
 
 def tokenize(text):
-	return [lem_dict.get(t, t) for t in normalize(text).split()]
+    return [lem_dict.get(t, t) for t in normalize(text).split()]
 
 frequency_dict = dict()
 def _increment_word_count(text):
-	tokens = tokenize(text)
-	for t in tokens:
-		frequency_dict[t] = frequency_dict.get(t, 0) + 1
+    tokens = tokenize(text)
+    for t in tokens:
+        frequency_dict[t] = frequency_dict.get(t, 0) + 1
 
 
-actionscopes = _pd.read_excel("translated_actionscopes.xlsx", index_col="Code")
+actionscopes = pd.read_excel("translated_actionscopes.xlsx", index_col="Code")
 actionscopes.Description.apply(_increment_word_count)
 
 parts = set()
 for (token, count) in frequency_dict.items():
-	if (token not in lexicon
-	    and count > 3
-	    and not token.isnumeric()
-	    and token not in ignore_set):
-		parts.add(token)
+    if (token not in lexicon
+        and count > 3
+        and not token.isnumeric()
+        and token not in ignore_set):
+        parts.add(token)
+
+part_groups = {p: [] for p in parts}
+
+for code, row in actionscopes.iterrows():
+    description = row["Description"]
+    tokens = tokenize(description)
+    for part in parts:
+        if part in tokens:
+            part_groups[part].append(code)
+
+if __name__ == "__main__":
+    part_groups_df = {}
+    for part, codes in part_groups.items():
+        # Replace invalid characters in part name
+        valid_part_name = re.sub(r'[^\w\s-]', '', part)
+        part_data = {"Code": codes, "Description": [actionscopes["Description"][code] for code in codes]}
+        part_df = pd.DataFrame(part_data)
+        part_groups_df[valid_part_name] = part_df
+
+    # Write each part to a separate sheet in an Excel file
+    with pd.ExcelWriter('output.xlsx') as writer:
+        for part, df in part_groups_df.items():
+            df.to_excel(writer, sheet_name=part, index=False)
