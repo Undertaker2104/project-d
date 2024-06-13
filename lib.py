@@ -10,7 +10,7 @@ ignored_tokens = set(open("data/ignored_tokens.txt").read().split('\n'))
 
 # GiGaNT-Molex 2.0 lexicon
 # cut -f 2,5 molex_22_02_2022.tsv | tr "[:upper:]" "[:lower:]" | uniq > words.txt
-lem_dict = re.split("\t|\n", open("data/lem_dict.txt").read())
+lem_dict = re.split("\t|\n", open("lem_dict.txt", encoding="utf-8").read())
 lem_dict = {k: v for k, v in zip(lem_dict[1::2], lem_dict[0::2])}
 
 # spellcheck
