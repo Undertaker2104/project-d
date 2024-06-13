@@ -3,6 +3,7 @@ import zipfile
 
 # NOTE: This is a very basic Excel parser, but should be good enough to handle
 #       Actionscopes and Job Orders workbooks.
+# FIXME: Turns out there are multiple string tables in sharedstrings (<sst>)
 
 class Worksheet:
 	def __init__(self, table):

@@ -31,9 +31,15 @@ def cmd_update(args):
 	print("updating...")
 	code_col = table.get_col_index("Code")
 	desc_col = table.get_col_index("Description")
+	memo_col = table.get_col_index("Memo")
+	return
 	db = Database()
 	db.open_else_create("data.db")
 	rows = db.rows_that_arent_in_table(sheet_type, code_col, table.table)
+	if len(rows) == 0:
+		print("up to date")
+		db.close()
+		return
 	# In order to get the keywords from text, we need to figure what tokens have
 	# the highest frequency. tokenize the text, increment frequency count for
 	# each token. Finally we can query the frequency for each token and find the
@@ -42,10 +48,15 @@ def cmd_update(args):
 	# the most frequent. the frequency table could just be a view that groups and
 	# counts the token-code table. dont know if performance will be good enough.
 
-	# update token frequencies
+	# 1. tokenize text
+	# 2. count tokens, put {token, freq} in a list
+	# 3. increment frequency in database by freq
 	descs = [r[desc_col] for r in table.table]
 	freqs = sub.get_token_frequencies(descs)
 	db.update_token_frequencies(freqs)
+	db.update_keywords(code_col, desc_col, table.table)
+	db.rows_add(sheet_type, code_col, desc_col, memo_col, table.table)
+	db.close()
 
 if __name__ == "__main__":
 	if len(sys.argv) < 2:

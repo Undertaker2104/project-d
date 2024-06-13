@@ -1,4 +1,8 @@
+import logging
 import sqlite3
+import lib
+
+logger = logging.getLogger(__name__)
 
 class Database:
 	def rows_that_arent_in_table(self, db_table, col, rows):
@@ -13,11 +17,19 @@ class Database:
 			res = cur.fetchone()
 			if res[0] == 0:
 				not_in_db.append(row)
+		logger.debug(f"{len(not_in_db)} rows not found in table {db_table}")
 		return not_in_db
 
-	def insert_rows(self, db_table, key
+	def rows_add(self, db_table, key_col, desc_col, memo_col, table):
+		cur = self.con.cursor()
+		cur.executemany(f"""
+			INSERT OR IGNORE INTO {db_table}(code, description, memo)
+			VALUES (?, ?, ?)
+		""", [(r[key_col], r[desc_col], r[memo_col]) for r in table])
+		cur.close()
 
 	def update_token_frequencies(self, freqs):
+		logger.debug(f"Inserting/updating {len(freqs)} token_frequency rows")
 		cur = self.con.cursor()
 		# print(freqs)
 		cur.executemany("""
@@ -30,9 +42,29 @@ class Database:
 			WHERE token = :token
 		""", freqs)
 		cur.close()
-		self.con.commit()
 
+	def update_keywords(self, key_col, desc_col, table):
+		for row in table:
+			tokens = lib.tokenize(row[desc_col])
+			cur = self.con.cursor()
+			freqs = []
+			for tok in tokens:
+				r = cur.execute("""
+					SELECT frequency FROM token_frequency WHERE token = ?
+				""", (tok,)).fetchone()
+				if r is not None:
+					freqs.append({"token": tok, "frequency": r[0]})
+			freqs.sort(key=lambda x: x["frequency"], reverse=True)
+			for f in freqs[:2]:
+				cur.execute("""
+					INSERT OR IGNORE INTO keyword(token, code)
+					VALUES (?, ?)
+				""", (f["token"], row[key_col]))
+			cur.close()
+				
+		
 	def close(self):
+		self.con.commit()
 		self.con.close()
 
 	def open_else_create(self, path):
