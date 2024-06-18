@@ -1,8 +1,9 @@
 from database import Database
 from datasets import Datasets
-from enum import StrEnum
+from enum import StrEnum, IntFlag
 
-import excel as excel
+import excel
+import getopt
 import sys
 
 # ANSI escape codes
@@ -13,6 +14,11 @@ class C(StrEnum):
 	COLOR_RESET        = "\33[1;34;0m"
 	BOLD_SET           = "\33[1m"
 	BOLD_RESET         = "\33[22m"
+
+class Exit(IntFlag):
+	SUCCESS = 0
+	FAILURE = 1
+
 
 def print_error(msg):
 	print(f"{C.COLOR_RED}ERROR{C.COLOR_RESET}: {msg}", file=sys.stderr)
@@ -39,12 +45,15 @@ def cmd_list(args, db):
 			keywords = db.get_keywords()
 			for keyword in keywords:
 				print(keyword)
+			return Exit.SUCCESS
 		case ["part" | "parts"]:
 			parts = db.get_parts()
 			for part in parts:
 				print(part)
+			return Exit.SUCCESS
 		case _:
 			print_error("unknown argument " + ' '.join(args))
+			return Exit.FAILURE
 
 
 def cmd_group(args, db):
@@ -53,6 +62,7 @@ def cmd_group(args, db):
 			groups = db.get_keyword_groups()
 			for group in groups:
 				print(":\n\t".join(group))
+			return Exit.SUCCESS
 
 		case ["keyword" | "keywords", *query]:
 			groups = db.get_keyword_groups_where(*query)
@@ -60,12 +70,14 @@ def cmd_group(args, db):
 				for group in groups:
 					print(":\n\t".join(group))
 			else:
-				print_error("There are no items that have this keyword")
+				print_info("There are no items that have this keyword")
+			return Exit.SUCCESS
 
 		case ["part" | "parts", "all"]:
 			groups = db.get_part_groups()
 			for group in groups:
 				print(":\n\t".join(group))
+			return Exit.SUCCESS
 
 		case ["part" | "parts", query]:
 			groups = db.get_part_groups_where(query)
@@ -73,14 +85,18 @@ def cmd_group(args, db):
 				for group in groups:
 					print(":\n\t".join(group))
 			else:
-				print_error("There are no items that mention this part")
+				print_info("There are no items that mention this part")
+			return Exit.SUCCESS
 
 		case [_, "query"]:
 			print_error("not yet implemented")
+			return Exit.FAILURE
 		case ["part" | "parts" | "keyword" | "keywords"]:
 			print_error("missing argument [query|all]")
+			return Exit.FAILURE
 		case _:
 			print_error("unknown argument " + ' '.join(args))
+			return Exit.FAILURE
 
 
 def cmd_search(args):
@@ -88,16 +104,35 @@ def cmd_search(args):
 
 
 def cmd_update(args, db):
-	if len(args) < 1:
-		print("ERROR: Forgot filename", file=sys.stderr)
+	sheet_type = None
+	filename = None
+	match (args):
+		case ["actionscope" | "actionscopes", file]:
+			sheet_type = "actionscope"
+			filename = file
+		case ["job_order" | "job_orders", file]:
+			sheet_type = "job_order"
+			filename = file
+		case _:
+			print_error("Incorrect usage")
+			return Exit.FAILURE
 
-	sheet_type = args[0]
-	filename = args[1]
 	worksheet = excel.open(filename)
 	table = worksheet.table
-	code_col = worksheet.get_col_index("Code")
-	desc_col = worksheet.get_col_index("Description")
-	memo_col = worksheet.get_col_index("Memo")
+	code_col = None
+	desc_col = None
+	memo_col = None
+
+	match sheet_type:
+		case "actionscope":
+			code_col = worksheet.get_col_index("Code")
+			desc_col = worksheet.get_col_index("Description")
+			memo_col = worksheet.get_col_index("Memo")
+		case "job_order":
+			code_col = worksheet.get_col_index("Actionscope.Code")
+			desc_col = worksheet.get_col_index("Description")
+			memo_col = worksheet.get_col_index("Memo")
+
 	rows = db.rows_that_arent_in_table(sheet_type, code_col, table)
 	if len(rows) == 0:
 		print_bold("Database is already up to date.")
@@ -118,22 +153,36 @@ def cmd_update(args, db):
 		db.update_parts(datasets, code_col, desc_col, table)
 		print_bold(f"successfully added {len(rows)} items to the database!")
 		db.close()
+	return Exit.SUCCESS
 
 
-if __name__ == "__main__":
+def main():
 	if len(sys.argv) < 2:
 		cmd_usage(sys.argv[0])
 	else:
 		db = Database()
 		db.open_else_create("data.db")
-		match sys.argv[1]:
-			case "list":
-				cmd_list(sys.argv[2:], db)
-			case "group":
-				cmd_group(sys.argv[2:], db)
-			case "search":
-				cmd_search(sys.argv[2:])
-			case "update":
-				cmd_update(sys.argv[2:], db)
+		try:
+			opts, args = getopt.gnu_getopt(sys.argv[1:], "", longopts = [
+				"skip-translation",
+			])
+		except getopt.Getopterror as e:
+			print_error(e)
+			sys.exit(Exit.FAILURE)
+
+		status = 0
+		match args:
+			case ["list", *args]:
+				status = cmd_list(args, db)
+			case ["group", *args]:
+				status = cmd_group(args, db)
+			case ["search", *args]:
+				status = cmd_search(args)
+			case ["update", *args]:
+				status = cmd_update(args, db)
 			case _:
-				cmd_usage(sys.argv[0])
+				status = cmd_usage(sys.argv[0])
+		sys.exit(status)
+
+if __name__ == "__main__":
+	main()

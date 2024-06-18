@@ -1,18 +1,20 @@
 import sqlite3
 
 class Database:
-	def rows_that_arent_in_table(self, db_table, col, rows):
+	def rows_that_arent_in_table(self, db_table, code_col, table):
 		not_in_db = []
 		cur = self.con.cursor()
-		for row in rows:
-			code = row[col]
-			# can't parameterize tables so have to do it the dirty way
-			cur.execute(f"""
-				SELECT EXISTS(SELECT * FROM {db_table} WHERE code = ?)
-			""", (code,))
-			res = cur.fetchone()
-			if res[0] == 0:
-				not_in_db.append(row)
+		for row in table:
+			# ignore rows without an actionscope code
+			if code := row[code_col]:
+				print(code)
+				# can't parameterize tables so have to do it the dirty way
+				cur.execute(f"""
+					SELECT EXISTS(SELECT * FROM {db_table} WHERE code = ?)
+				""", (code,))
+				res = cur.fetchone()
+				if res[0] == 0:
+					not_in_db.append(row)
 		return not_in_db
 
 	def rows_add(self, db_table, key_col, desc_col, memo_col, table):
@@ -20,7 +22,7 @@ class Database:
 		cur.executemany(f"""
 			INSERT OR IGNORE INTO {db_table}(code, description, memo)
 			VALUES (?, ?, ?)
-		""", [(r[key_col], r[desc_col], r[memo_col]) for r in table])
+		""", ((r[key_col], r[desc_col], r[memo_col]) for r in table if r[key_col] is not None))
 		cur.close()
 
 	def update_token_frequencies(self, datasets, text_col, table):
