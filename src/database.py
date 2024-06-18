@@ -1,8 +1,4 @@
-import logging
 import sqlite3
-import lib
-
-logger = logging.getLogger(__name__)
 
 class Database:
 	def rows_that_arent_in_table(self, db_table, col, rows):
@@ -17,7 +13,6 @@ class Database:
 			res = cur.fetchone()
 			if res[0] == 0:
 				not_in_db.append(row)
-		logger.debug(f"{len(not_in_db)} rows not found in table {db_table}")
 		return not_in_db
 
 	def rows_add(self, db_table, key_col, desc_col, memo_col, table):
@@ -28,10 +23,15 @@ class Database:
 		""", [(r[key_col], r[desc_col], r[memo_col]) for r in table])
 		cur.close()
 
-	def update_token_frequencies(self, freqs):
-		logger.debug(f"Inserting/updating {len(freqs)} token_frequency rows")
+	def update_token_frequencies(self, datasets, text_col, table):
+		d = dict()
+		for row in table:
+			tokens = datasets.tokenize(row[text_col])
+			for token in tokens:
+				if token not in datasets.trivial_tokens():
+					d[token] = d.get(token, 0) + 1
+
 		cur = self.con.cursor()
-		# print(freqs)
 		cur.executemany("""
 			INSERT OR IGNORE INTO token_frequency(
 				token,
@@ -40,12 +40,12 @@ class Database:
 			ON CONFLICT	DO UPDATE SET
 				frequency = frequency + :frequency
 			WHERE token = :token
-		""", freqs)
+		""", [{"token": t, "frequency": f} for t, f in d.items()])
 		cur.close()
 
-	def update_keywords(self, key_col, desc_col, table):
+	def update_keywords(self, datasets, key_col, desc_col, table):
 		for row in table:
-			tokens = lib.tokenize(row[desc_col])
+			tokens = datasets.tokenize(row[desc_col])
 			cur = self.con.cursor()
 			freqs = []
 			for tok in tokens:
@@ -54,15 +54,92 @@ class Database:
 				""", (tok,)).fetchone()
 				if r is not None:
 					freqs.append({"token": tok, "frequency": r[0]})
+			freqs.sort(key=lambda x: x["token"])
 			freqs.sort(key=lambda x: x["frequency"], reverse=True)
+			# only look at the 2 keywords with the highest frequency
 			for f in freqs[:2]:
 				cur.execute("""
 					INSERT OR IGNORE INTO keyword(token, code)
 					VALUES (?, ?)
 				""", (f["token"], row[key_col]))
 			cur.close()
+
+	def update_parts(self, datasets, key_col, desc_col, table):
+		# figure out what the parts are
+		parts = set()
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT token FROM token_frequency
+			WHERE frequency > 3
+		""")
+		for token in res.fetchall():
+			token = token[0]
+			if token not in datasets.lexicon() and not token.isnumeric() and token not in datasets.ignored_tokens():
+				parts.add(token)
 				
-		
+		# add rows that contain a token that is a "part" to the db
+		rows = []
+		for row in table:
+			tokens = datasets.tokenize(row[desc_col])
+			for part in parts:
+				if part in tokens:
+					rows.append((part, row[key_col]))
+		cur.executemany("""
+			INSERT OR IGNORE INTO part(name, code) VALUES(?, ?)
+		""", rows)
+		cur.close()
+
+	def get_part_groups(self):
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT name, GROUP_CONCAT(code, "\n\t")
+			FROM part GROUP BY name
+		""")
+		groups = res.fetchall()
+		cur.close()
+		return groups
+
+	def get_part_groups_where(self, part):
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT name, GROUP_CONCAT(code, "\n\t")
+			FROM part WHERE name = ? GROUP BY name
+		""", (part,))
+		groups = res.fetchall()
+		cur.close()
+		return groups
+
+	def get_parts(self):
+		res = self.con.execute("""
+			SELECT DISTINCT name FROM part
+		""")
+		return [r[0] for r in res.fetchall()]
+
+	def get_keywords(self):
+		res = self.con.execute("""
+			SELECT DISTINCT token FROM keyword
+		""")
+		return [r[0] for r in res.fetchall()]
+
+	def get_keyword_groups(self):
+		cur = self.con.cursor()
+		res = cur.execute("""
+			WITH pairs AS (
+				SELECT GROUP_CONCAT(token, ", ") AS tokens, code
+				FROM keyword GROUP BY code
+			)
+			SELECT tokens, GROUP_CONCAT(code, "\n\t")
+			FROM pairs GROUP BY tokens
+		""")
+		groups = res.fetchall()
+		cur.close()
+		return groups
+
+	def get_keyword_groups_where(self, *keywords):
+		groups = self.get_keyword_groups()
+		needle = ", ".join(keywords)
+		return [g for g in groups if needle in g[0]]
+
 	def close(self):
 		self.con.commit()
 		self.con.close()

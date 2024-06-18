@@ -5,6 +5,10 @@ import zipfile
 #       Actionscopes and Job Orders workbooks.
 # FIXME: Turns out there are multiple string tables in sharedstrings (<sst>)
 
+def _tag_url_stripped(tag):
+	"""tags start with a schema url for some reason"""
+	return tag.split('}')[-1]
+
 class Worksheet:
 	def __init__(self, table):
 		self.table = table[1:]
@@ -14,11 +18,28 @@ class Worksheet:
 		"""get value by (row, col name)"""
 		return self.header.index(col)
 	
-
 class _XMLTargetSharedStrings:
 	strings = []
+	open = False
+	buf = ''
+
+	# Text elements within SharedStringItems need to be joined
+	# https://learn.microsoft.com/en-us/office/open-xml/spreadsheet/working-with-the-shared-string-table
 	def data(self, data):
-		self.strings.append(data)
+		if self.open:
+			self.buf += data
+
+	def start(self, tag, attrs):
+		tag = _tag_url_stripped(tag)
+		if tag == "si":
+			self.open = True
+
+	def end(self, tag):
+		tag = _tag_url_stripped(tag)
+		if tag == "si":
+			self.strings.append(self.buf)
+			self.buf = ''
+			self.open = False
 
 
 class _XMLTargetWorksheet:
@@ -45,7 +66,7 @@ class _XMLTargetWorksheet:
 		return tag.split('}')[-1]
 
 	def start(self, tag, attrs):
-		tag = self.tag_url_stripped(tag)
+		tag = _tag_url_stripped(tag)
 		match (self.state, tag):
 			case ("initial", "sheetData"):
 				self.state = tag
@@ -67,7 +88,7 @@ class _XMLTargetWorksheet:
 				self.table[-1][self.col_index] = data
 
 	def end(self, tag):
-		tag = self.tag_url_stripped(tag)
+		tag = _tag_url_stripped(tag)
 		match (self.state, tag):
 			case ('v', 'c'):
 				self.state = tag
@@ -82,7 +103,6 @@ def open(path):
 	target = _XMLTargetSharedStrings()
 	parser = XMLParser(target=target)
 	parser.feed(file.open("xl/sharedStrings.xml").read())
-
 	# parse worksheet
 	target = _XMLTargetWorksheet(target.strings)
 	parser = XMLParser(target=target)
