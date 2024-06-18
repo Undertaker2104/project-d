@@ -9,7 +9,7 @@ def loop(filename):
     for x in range(len(data)):
         print(f"{x}/{len(data)}")
 
-        if x < 1000:
+        if x > 10000:
             continue
 
         # Memo_x
@@ -47,4 +47,4 @@ def summarize(text, summarizer):
     return combined_summary
 
 if __name__ == '__main__':
-    loop('./Data/merged_data.xlsx')
+    loop('./merged_data.xlsx')
