@@ -20,11 +20,22 @@ class Worksheet:
 	def get_col_index(self, col):
 		"""get value by (row, col name)"""
 		return self.header.index(col)
-	
+
+	def guess_sheet_type(self):
+		sheet_type = "unknown"
+		if "Description_x" in self.header:
+			sheet_type = "merged"
+		elif "Actionscope.Code" in self.header:
+			sheet_type = "job_order"
+		elif "Code" in self.header:
+			sheet_type = "actionscope"
+		return sheet_type
+
 class _XMLTargetSharedStrings:
-	strings = []
-	open = False
-	buf = ''
+	def __init__(self):
+		self.strings = []
+		self.open = False
+		self.buf = ''
 
 	# Text elements within SharedStringItems need to be joined
 	# https://learn.microsoft.com/en-us/office/open-xml/spreadsheet/working-with-the-shared-string-table
@@ -46,21 +57,25 @@ class _XMLTargetSharedStrings:
 
 
 class _XMLTargetWorksheet:
-	"""Parser finite state machine"""
-	table = []
-	state = "initial"
-	val_is_sharedString = False
-	col_index = 0
-
 	def __init__(self, sharedStrings):
 		self.sharedStrings = sharedStrings
+		self.table = []
+		self.state = "initial"
+		self.val_is_sharedString = False
+		self.col_index = 0
 
 	def init_new_row(self, attrs):
 		"""Create a new row of the correct length. filled with None"""
-		self.table.append([None] * int(attrs["spans"][2:]))
+		if attrs["spans"][1].isnumeric():
+			self.table.append([None] * int(attrs["spans"][3:]))
+		else:
+			self.table.append([None] * int(attrs["spans"][2:]))
 
 	def update_col_state(self, attrs):
-		self.col_index = ord(attrs['r'][0]) - ord('A')
+		if attrs['r'][1].isnumeric():
+			self.col_index = ord(attrs['r'][0]) - ord('A')
+		else:
+			self.col_index = 25 + ord(attrs['r'][1]) - ord('A')
 		self.val_is_sharedString = attrs.get('t') == 's'
 
 	@staticmethod
@@ -98,6 +113,8 @@ class _XMLTargetWorksheet:
 			case ('c', "row"):
 				self.state = tag
 
+# 1. look at the column headers to decide file type
+# Rows that dont refer to an actionscope codes are skipped
 def open(path):
 	"""Parser an Excel file and turns it into a 2D array"""
 	file = zipfile.ZipFile(path)

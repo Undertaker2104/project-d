@@ -3,7 +3,7 @@ from transformers import pipeline
 qa_pipeline = pipeline(
     "question-answering",
     model="henryk/bert-base-multilingual-cased-finetuned-dutch-squad2",
-    tokenizer="henryk/bert-base-multilingual-cased-finetuned-dutch-squad2"
+    tokenizer="henryk/bert-base-multilingual-cased-finetuned-dutch-squad2",
 )
 input = input("Geef een vraag op: ")
 context = """Hallo,

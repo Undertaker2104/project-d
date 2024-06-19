@@ -1,4 +1,18 @@
 import sqlite3
+from summarize import Summarizer
+from enum import StrEnum, IntFlag
+
+# ANSI escape codes
+class C(StrEnum):
+	COLOR_RED          = "\33[1;34;31m"
+	COLOR_YELLOW       = "\33[1;34;93m"
+	COLOR_GREEN        = "\33[1;34;32m"
+	COLOR_RESET        = "\33[1;34;0m"
+	BOLD_SET           = "\33[1m"
+	BOLD_RESET         = "\33[22m"
+
+def print_info(msg):
+	print(f"{C.COLOR_YELLOW}INFO{C.COLOR_RESET}: {msg}")
 
 class Database:
 	def rows_that_arent_in_table(self, db_table, code_col, table):
@@ -15,12 +29,21 @@ class Database:
 				not_in_db.append(row)
 		return not_in_db
 
-	def rows_add(self, db_table, key_col, desc_col, memo_col, table):
+	def rows_add_actionscope(self, key_col, desc_col, memo_col, table):
 		cur = self.con.cursor()
-		cur.executemany(f"""
-			INSERT OR IGNORE INTO {db_table}(code, description, memo)
+		cur.executemany("""
+			INSERT OR IGNORE INTO actionscope(code, description, memo)
 			VALUES (?, ?, ?)
-		""", ((r[key_col], r[desc_col], r[memo_col]) for r in table if r[key_col] is not None))
+		""", ((r[key_col], r[desc_col], r[memo_col]) for r in table))
+		cur.close()
+
+	def rows_add_job_order(self, key_col, desc_col, memo_col, solution_col, table):
+		cur = self.con.cursor()
+		cur.executemany("""
+			INSERT OR IGNORE INTO job_order(code, description, memo, realized_solution)
+			VALUES (?, ?, ?, ?)
+		""", ((r[key_col], r[desc_col], r[memo_col], r[solution_col])
+		       for r in table if r[key_col] is not None))
 		cur.close()
 
 	def update_token_frequencies(self, datasets, text_col, table):
@@ -28,7 +51,7 @@ class Database:
 		for row in table:
 			tokens = datasets.tokenize(row[text_col])
 			for token in tokens:
-				if token not in datasets.trivial_tokens():
+				if token not in datasets.trivial_tokens() and not token.isnumeric():
 					d[token] = d.get(token, 0) + 1
 
 		cur = self.con.cursor()
@@ -63,7 +86,7 @@ class Database:
 				""", (f["token"], row[key_col]))
 			cur.close()
 
-	def update_parts(self, datasets, key_col, desc_col, table):
+	def update_parts(self, datasets, key_col, desc_col, sol_col, table):
 		# figure out what the parts are
 		parts = set()
 		cur = self.con.cursor()
@@ -80,6 +103,9 @@ class Database:
 		rows = []
 		for row in table:
 			tokens = datasets.tokenize(row[desc_col])
+			if sol_col != None:
+				if sol_text := row[sol_col]:
+					tokens.extend(datasets.tokenize(sol_text))
 			for part in parts:
 				if part in tokens:
 					rows.append((part, row[key_col]))
@@ -87,6 +113,60 @@ class Database:
 			INSERT OR IGNORE INTO part(name, code) VALUES(?, ?)
 		""", rows)
 		cur.close()
+
+	def update_summarizations_actionscopes(self, key_col, memo_col, table):
+		summarizer = Summarizer()
+
+		memo_summs = [None] * len(table)
+		for row in range(len(table)):
+			memo = table[row][memo_col]
+			if memo and len(memo) > 50:
+				print_info(f"summarizing memo {table[row][key_col]}...")
+				memo_summs[row] = summarizer.summarize(memo)
+
+		cur = self.con.cursor()
+		cur.executemany("""
+			UPDATE actionscope
+			   SET memo_summarized = ?
+			 WHERE code = ?
+			VALUES (?, ?)
+		""", zip((r[key_col] for r in table), memo_summs))
+		cur.close()
+
+
+	def update_summarizations_job_orders(self, key_col, memo_col, sol_col, table):
+		summarizer = Summarizer()
+
+		memo_summs = [None] * len(table)
+		for row in range(len(table)):
+			memo = table[row][memo_col]
+			if memo and len(memo) > 50:
+				print_info(f"summarizing memo {table[row][key_col]}...")
+				memo_summs[row] = summarizer.summarize(memo)
+
+		sol_summs = [None] * len(table)
+		for row in range(len(table)):
+			solution = table[row][sol_col]
+			if solution and len(solution) > 50:
+				print_info(f"summarizing solution {table[row][key_col]}...")
+				sol_summs[row] = summarizer.summarize(solution)
+
+		cur = self.con.cursor()
+		cur.executemany("""
+			UPDATE job_order
+			   SET memo_summarized = ?
+			 WHERE code = ?
+			VALUES (?, ?)
+		""", zip((r[key_col] for r in table), memo_summs))
+
+		cur.executemany("""
+			UPDATE job_order
+			   SET realized_solution_summarized = ?
+			 WHERE code = ?
+			VALUES (?, ?)
+		""", zip((r[key_col] for r in table), solution_summarization))
+		cur.close()
+		
 
 	def get_part_groups(self):
 		cur = self.con.cursor()
@@ -154,6 +234,54 @@ class Database:
 		needle = ", ".join(keywords)
 		return [g for g in groups if needle in g[0]]
 
+	def get_descriptions(self, code):
+		descs = []
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT description FROM actionscope WHERE code = ?
+		""", (code,))
+		if desc := res.fetchone():
+			descs.extend(desc)
+		res = cur.execute("""
+			SELECT description FROM job_order WHERE code = ?
+		""", (code,))
+		if desc := res.fetchone():
+			descs.extend(desc)
+		cur.close()
+		return descs
+
+	def get_memos(self, code):
+		memos = []
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT memo FROM actionscope WHERE code = ?
+		""", (code,))
+		if memo := res.fetchone():
+			memos.extend(memo)
+		res = cur.execute("""
+			SELECT memo FROM job_order WHERE code = ?
+		""", (code,))
+		if memo := res.fetchone():
+			memos.extend(memo)
+		cur.close()
+		return memos
+
+	def get_solution(self, code):
+		cur = self.con.cursor()
+		res = cur.execute("""
+			SELECT realized_solution FROM job_order WHERE code = ?
+		""", (code,)).fetchone()
+		if res:
+			return res[0]
+		else:
+			return None
+
+	def get_context(self, code):
+		context = self.get_memos(code)
+		if solution := self.get_solution(code):
+			context.append(solution)
+		return '\n'.join(context)
+
 	def close(self):
 		self.con.commit()
 		self.con.close()
@@ -164,23 +292,19 @@ class Database:
 	
 		cur.executescript("""
 			BEGIN;
-			CREATE TABLE IF NOT EXISTS item(
-				code TEXT PRIMARY KEY
-			);
 			CREATE TABLE IF NOT EXISTS actionscope(
-				code        TEXT PRIMARY KEY,
-				description TEXT,
-				memo        TEXT,
-				FOREIGN KEY(code) REFERENCES item(code)
+				code            TEXT PRIMARY KEY,
+				description     TEXT,
+				memo            TEXT,
+				memo_summarized TEXT
 			);
 			CREATE TABLE IF NOT EXISTS job_order(
-				code        TEXT PRIMARY KEY,
-				description TEXT,
-				memo        TEXT,
-				FOREIGN KEY(code) REFERENCES item(code)
-			);
-			CREATE TABLE IF NOT EXISTS token(
-				token TEXT PRIMARY KEY
+				code                         TEXT PRIMARY KEY,
+				description                  TEXT,
+				memo                         TEXT,
+				memo_summarized              TEXT,
+				realized_solution            TEXT,
+				realized_solution_summarized TEXT
 			);
 			CREATE TABLE IF NOT EXISTS token_frequency(
 				token     TEXT    PRIMARY KEY,
@@ -196,8 +320,6 @@ class Database:
 			CREATE TABLE IF NOT EXISTS part(
 				name TEXT,
 				code TEXT,
-				FOREIGN KEY(code) REFERENCES item(code),
-				FOREIGN KEY(name) REFERENCES token(token),
 				PRIMARY KEY(name, code)
 			);
 			COMMIT;
