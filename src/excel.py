@@ -3,7 +3,10 @@ import zipfile
 
 # NOTE: This is a very basic Excel parser, but should be good enough to handle
 #       Actionscopes and Job Orders workbooks.
-# FIXME: Turns out there are multiple string tables in sharedstrings (<sst>)
+#
+#       Maybe store each column into a separate list. This makes more sense
+#       considering the way the data is processed, simplifying logic, and
+#       perhaps speeding up processing
 
 def _tag_url_stripped(tag):
 	"""tags start with a schema url for some reason"""

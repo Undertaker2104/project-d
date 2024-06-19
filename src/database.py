@@ -5,16 +5,14 @@ class Database:
 		not_in_db = []
 		cur = self.con.cursor()
 		for row in table:
-			# ignore rows without an actionscope code
-			if code := row[code_col]:
-				print(code)
-				# can't parameterize tables so have to do it the dirty way
-				cur.execute(f"""
-					SELECT EXISTS(SELECT * FROM {db_table} WHERE code = ?)
-				""", (code,))
-				res = cur.fetchone()
-				if res[0] == 0:
-					not_in_db.append(row)
+			code = row[code_col]
+			# can't parameterize tables so have to do it the dirty way
+			cur.execute(f"""
+				SELECT EXISTS(SELECT * FROM {db_table} WHERE code = ?)
+			""", (code,))
+			res = cur.fetchone()
+			if res[0] == 0:
+				not_in_db.append(row)
 		return not_in_db
 
 	def rows_add(self, db_table, key_col, desc_col, memo_col, table):
@@ -58,8 +56,7 @@ class Database:
 					freqs.append({"token": tok, "frequency": r[0]})
 			freqs.sort(key=lambda x: x["token"])
 			freqs.sort(key=lambda x: x["frequency"], reverse=True)
-			# only look at the 2 keywords with the highest frequency
-			for f in freqs[:2]:
+			for f in freqs:
 				cur.execute("""
 					INSERT OR IGNORE INTO keyword(token, code)
 					VALUES (?, ?)
@@ -115,23 +112,38 @@ class Database:
 		res = self.con.execute("""
 			SELECT DISTINCT name FROM part
 		""")
-		return [r[0] for r in res.fetchall()]
+		for r in res.fetchall():
+			yield r[0]
 
 	def get_keywords(self):
 		res = self.con.execute("""
 			SELECT DISTINCT token FROM keyword
 		""")
-		return [r[0] for r in res.fetchall()]
+		for r in res.fetchall():
+			yield r[0]
 
 	def get_keyword_groups(self):
 		cur = self.con.cursor()
+		# Group items by their two most frequent keywords
+		# I got this query from Gemini, I don't really know how it works
 		res = cur.execute("""
-			WITH pairs AS (
-				SELECT GROUP_CONCAT(token, ", ") AS tokens, code
-				FROM keyword GROUP BY code
+			WITH top_two_pairs AS (
+				SELECT code, keyword.token AS keyword_token, frequency,
+					ROW_NUMBER() OVER (PARTITION BY code ORDER BY frequency DESC)
+					AS rank
+				FROM keyword
+				INNER JOIN token_frequency
+				ON keyword.token = token_frequency.token
+			),
+			high_freq_pairs AS (
+				SELECT code, GROUP_CONCAT(keyword_token, ", ") AS tokens
+				FROM top_two_pairs
+				WHERE rank <= 2
+				GROUP BY code
 			)
 			SELECT tokens, GROUP_CONCAT(code, "\n\t")
-			FROM pairs GROUP BY tokens
+			FROM high_freq_pairs
+			GROUP BY tokens;
 		""")
 		groups = res.fetchall()
 		cur.close()

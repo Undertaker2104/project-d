@@ -132,11 +132,12 @@ def cmd_update(args, db):
 			code_col = worksheet.get_col_index("Actionscope.Code")
 			desc_col = worksheet.get_col_index("Description")
 			memo_col = worksheet.get_col_index("Memo")
+			# Ignore job orders that don't refer to an actionscope
+			table = [r for r in table if r[code_col] is not None]
 
 	rows = db.rows_that_arent_in_table(sheet_type, code_col, table)
 	if len(rows) == 0:
 		print_bold("Database is already up to date.")
-		db.close()
 
 	# 1. tokenize text
 	# 2. count tokens, put {token, freq} in a list
@@ -152,7 +153,6 @@ def cmd_update(args, db):
 		print_info("updating parts...")
 		db.update_parts(datasets, code_col, desc_col, table)
 		print_bold(f"successfully added {len(rows)} items to the database!")
-		db.close()
 	return Exit.SUCCESS
 
 
@@ -182,6 +182,7 @@ def main():
 				status = cmd_update(args, db)
 			case _:
 				status = cmd_usage(sys.argv[0])
+		db.close()
 		sys.exit(status)
 
 if __name__ == "__main__":
