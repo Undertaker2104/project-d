@@ -176,7 +176,6 @@ def cmd_update(args, opts, db):
 	memo_col = None
 	solution_col = None
 
-	print_info(f"detected {sheet_type}s file")
 	match sheet_type:
 		case SheetType.ACTIONSCOPE:
 			code_col = worksheet.get_col_index("Code")
@@ -190,20 +189,38 @@ def cmd_update(args, opts, db):
 			# Ignore job orders that don't refer to an actionscope item
 			table = [r for r in table if r[code_col] is not None]
 		case SheetType.MERGED:
-			code_col = worksheet.get_col_index("Actionscope.Code")
+			code_col = worksheet.get_col_index("Code")
 			desc_col = worksheet.get_col_index("Description_x")
 			memo_col = worksheet.get_col_index("Memo_x")
 			solution_col = worksheet.get_col_index("Realized solution")
 
 
 	if sheet_type == SheetType.MERGED:
+		print_info(f"detected merged file. importing...")
+		datasets = Datasets()
 		desc_col_y = worksheet.get_col_index("Description_y")
 		memo_col_y = worksheet.get_col_index("Memo_y")
 		print_info("updating keywords...")
 		db.update_token_frequencies(datasets, desc_col, table)
 		db.update_keywords(datasets, code_col, desc_col, table)
+		as_table = []
+		jo_table = []
+		as_col = worksheet.get_col_index("Actionscope.Code")
+		for row in table:
+			if len(row) < as_col and row[as_col] is not None and row[solution_col] is not None:
+				jo_table.append(row)
+			else:
+				as_table.append(row)
+		return Exit.SUCCESS
+		print_info("adding actionscope rows...")
+		db.rows_add_actionscope(code_col, desc_col, memo_col, as_table)
+		print_info("adding job order rows...")
+		db.rows_add_job_order(code_col, desc_col, memo_col, solution_col, jo_table)
+		print_info("updating parts...")
+		db.update_parts(datasets, code_col, desc_col, None, table)
 		return Exit.SUCCESS
 
+	print_info(f"detected {sheet_type}s file")
 	rows = db.rows_that_arent_in_table(sheet_type, code_col, table)
 	if len(rows) == 0:
 		print_bold("Database is already up to date.")

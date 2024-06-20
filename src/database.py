@@ -29,6 +29,15 @@ class Database:
 				not_in_db.append(row)
 		return not_in_db
 
+	def update_memos(self, key_col, memo_col, table):
+		cur = self.con.cursor()
+		cur.executemany("""
+			UPDATE OR IGNORE actionscope
+			SET memo_summarized = ?
+			WHERE code = ?
+		""", ((r[memo_col], r[key_col]) for r in table))
+		
+
 	def rows_add_actionscope(self, key_col, desc_col, memo_col, table):
 		cur = self.con.cursor()
 		cur.executemany("""
@@ -277,7 +286,10 @@ class Database:
 			return None
 
 	def get_context(self, code):
-		context = self.get_memos(code)
+		context = []
+		for mem in self.get_memos(code):
+			if mem is not None:
+				context.append(mem)
 		if solution := self.get_solution(code):
 			context.append(solution)
 		return '\n'.join(context)

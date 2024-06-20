@@ -72,10 +72,12 @@ class _XMLTargetWorksheet:
 			self.table.append([None] * int(attrs["spans"][2:]))
 
 	def update_col_state(self, attrs):
-		if attrs['r'][1].isnumeric():
-			self.col_index = ord(attrs['r'][0]) - ord('A')
-		else:
-			self.col_index = 25 + ord(attrs['r'][1]) - ord('A')
+		col = 0
+		for c in attrs['r']:
+			if c.isalpha():
+				col *= 25
+				col += ord(c) - ord('A')
+		self.col_index = col
 		self.val_is_sharedString = attrs.get('t') == 's'
 
 	@staticmethod
