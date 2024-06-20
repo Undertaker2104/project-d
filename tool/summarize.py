@@ -1,8 +1,5 @@
 from transformers import pipeline
 
-def print_info(msg):
-	print(f"{C.COLOR_YELLOW}INFO{C.COLOR_RESET}: {msg}")
-
 class Summarizer():
     def __init__(self):
         self.pipeline = pipeline('summarization', model="facebook/bart-large-cnn")

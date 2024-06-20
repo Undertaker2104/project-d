@@ -1,21 +1,7 @@
+from console import print_info
 from deep_translator import GoogleTranslator
-from enum import StrEnum, IntFlag
 
-# ANSI escape codes
-class C(StrEnum):
-    COLOR_RED          = "\33[1;34;31m"
-    COLOR_YELLOW       = "\33[1;34;93m"
-    COLOR_GREEN        = "\33[1;34;32m"
-    COLOR_RESET        = "\33[1;34;0m"
-    BOLD_SET           = "\33[1m"
-    BOLD_RESET         = "\33[22m"
-
-def print_info(msg):
-    print(f"{C.COLOR_YELLOW}INFO{C.COLOR_RESET}: {msg}")
-
-import os
 import py3langid as langid
-import pandas as pd
 
 
 def translate(key_col, desc_col, memo_col, table):

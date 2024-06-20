@@ -1,4 +1,19 @@
-# project-d
+# Project D
+
+## Installing dependencies
+
+In order to run the tool application, you need to install a few Python packages. It's recommended to install these packages in a virtual environment to prevent weird dependency conflicts:
+
+```sh
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python tool
+```
+
+When you run the appliation without arguments, it'll show a help menu. Required PyTorch models are downloaded at runtime.
+
+## Teamleden
 
 Sergio Tasseron (0970575),
 Lennard Touw (0990520),

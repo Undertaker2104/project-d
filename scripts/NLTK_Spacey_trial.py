@@ -1,4 +1,4 @@
-import pandas as pd
+../excel_files/import pandas as pd
 import json
 from datetime import datetime
 import spacy
@@ -49,7 +49,7 @@ def write_to_json(grouped_data, output_file, columns_to_include):
 
 
 if __name__ == "__main__":
-    file_path = "translated_service_joborders.xlsx"  # Adjust the file path as necessary
+    file_path = "../excel_files/translated_service_joborders.xlsx"  # Adjust the file path as necessary
     data = pd.read_excel(file_path, sheet_name="Sheet1")
 
     # Load the Dutch language model from spaCy

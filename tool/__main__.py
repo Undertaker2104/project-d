@@ -1,52 +1,38 @@
-import os
+from console import print_error, print_info, print_bold
 from database import Database
 from datasets import Datasets
 from enum import StrEnum, IntFlag
 from transformers import pipeline
 
-import logging
-import translator
 import excel
 import getopt
+import logging
 import sys
+import translator
 
-# ANSI escape codes
-class C(StrEnum):
-	COLOR_RED          = "\33[1;34;31m"
-	COLOR_YELLOW       = "\33[1;34;93m"
-	COLOR_GREEN        = "\33[1;34;32m"
-	COLOR_RESET        = "\33[1;34;0m"
-	BOLD_SET           = "\33[1m"
-	BOLD_RESET         = "\33[22m"
 
 class SheetType(StrEnum):
 	ACTIONSCOPE = "actionscope"
 	JOB_ORDER   = "job_order"
-	MERGED      = "merged"
+
 
 class Exit(IntFlag):
 	SUCCESS = 0
 	FAILURE = 1
 
 
-def print_error(msg):
-	print(f"{C.COLOR_RED}ERROR{C.COLOR_RESET}: {msg}", file=sys.stderr)
-
-def print_info(msg):
-	print(f"{C.COLOR_YELLOW}INFO{C.COLOR_RESET}: {msg}")
-
-def print_bold(msg):
-	print(f"{C.BOLD_SET}{msg}{C.BOLD_RESET}")
-
 def cmd_usage(program_name):
 	print(f"usage: {program_name} [COMMAND] [FLAGS] [QUERY]")
 	print("commands:")
-	print("  update [actionscope|job_order] [filename]")
 	print("  help")
-	print("  list   [PARTS|KEYWORDS]")
-	print("  group  [PARTS|KEYWORDS] [query|ALL]")
-	print("  ask    [code] [question]")
-	print("  show   [MEMO|DESCRIPTION] [code]")
+	print("  update [filename]                     Update the database")
+	print("  list   [PARTS|KEYWORDS]               List all parts or keywords")
+	print("  group  [PARTS|KEYWORDS] [query|ALL]   Group items by keyword(s) or part(s)")
+	print("  ask    [code] [question]              Ask a question about a specific item")
+	print("  show   [MEMO|DESCRIPTION] [code]      Show the memos or descriptions of an item")
+	print("flags:")
+	print("  --skip-translation                    Skip the translation stage")
+	print("  --skip-summarization                  Skip the summarization stage")
 
 
 def cmd_list(args, db):
@@ -134,10 +120,6 @@ def cmd_show(args, db):
 			print_error("Incorrect usage")
 			return Exit.FAILURE
 
-def cmd_search(args):
-	print("unimplemented")
-
-
 def cmd_ask(args, db):
 	match args:
 		case [code, *question]:
@@ -149,6 +131,10 @@ def cmd_ask(args, db):
 			print(qa_pipeline({
 			    'context': db.get_context(code),
 			    'question': ' '.join(question)}).get("answer"))
+			return Exit.SUCCESS
+		case _:
+			print_error("Incorrect usage")
+			return Exit.FAILURE
 
 
 def cmd_update(args, opts, db):
@@ -259,8 +245,6 @@ def main():
 				status = cmd_list(args, db)
 			case ["group", *args]:
 				status = cmd_group(args, db)
-			case ["search", *args]:
-				status = cmd_search(args)
 			case ["update", *args]:
 				status = cmd_update(args, opts, db)
 			case ["show", *args]:

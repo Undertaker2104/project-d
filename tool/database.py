@@ -1,18 +1,8 @@
-import sqlite3
+from console import print_info
 from summarize import Summarizer
-from enum import StrEnum, IntFlag
 
-# ANSI escape codes
-class C(StrEnum):
-	COLOR_RED          = "\33[1;34;31m"
-	COLOR_YELLOW       = "\33[1;34;93m"
-	COLOR_GREEN        = "\33[1;34;32m"
-	COLOR_RESET        = "\33[1;34;0m"
-	BOLD_SET           = "\33[1m"
-	BOLD_RESET         = "\33[22m"
+import sqlite3
 
-def print_info(msg):
-	print(f"{C.COLOR_YELLOW}INFO{C.COLOR_RESET}: {msg}")
 
 class Database:
 	def rows_that_arent_in_table(self, db_table, code_col, table):
@@ -177,7 +167,6 @@ class Database:
 			VALUES (?, ?)
 		""", zip((r[key_col] for r in table), solution_summarization))
 		cur.close()
-		
 
 	def get_part_groups(self):
 		cur = self.con.cursor()
