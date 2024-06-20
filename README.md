@@ -2,11 +2,12 @@
 
 ## Installing dependencies
 
-In order to run the tool application, you need to install a few Python packages. It's recommended to install these packages in a virtual environment to prevent weird dependency conflicts:
+In order to run the tool application, you need be using atleast python 3.11, you will also need to install a few Python packages. It's recommended to install these packages in a virtual environment to prevent weird dependency conflicts:
 
 ```sh
 python3 -m venv venv
-source venv/bin/activate
+unix: source venv/bin/activate
+windows: .\venv\Scripts\activate
 pip install -r requirements.txt
 python tool
 ```
