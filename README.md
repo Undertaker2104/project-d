@@ -5,7 +5,7 @@
 In order to run the tool application, you need to install a few Python packages. It's recommended to install these packages in a virtual environment to prevent weird dependency conflicts:
 
 ```sh
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 python tool
