@@ -105,8 +105,10 @@ class Database:
 		""")
 		for token in res.fetchall():
 			token = token[0]
-			if token not in datasets.lexicon() and not token.isnumeric() and token not in datasets.ignored_tokens():
-				parts.add(token)
+			if token in datasets.parts_that_are_in_lexicon():
+				parts.add(datasets.lem_dict().get(token, token))
+			elif token not in datasets.lexicon() and not token.isnumeric() and token not in datasets.ignored_tokens():
+				parts.add(datasets.lem_dict().get(token, token))
 				
 		# add rows that contain a token that is a "part" to the db
 		rows = []

@@ -7,6 +7,7 @@ class Datasets:
 		self._lexicon = None
 		self._trivial_tokens = None
 		self._ignored_tokens = None
+		self._parts_that_are_in_lexicon = None
 
 	def trivial_tokens(self):
 		# veel voorkomende maar onbelangrijke tokens
@@ -20,6 +21,11 @@ class Datasets:
 		if self._ignored_tokens is None:
 			self._ignored_tokens = set(open("data/ignored_tokens.txt").read().split('\n'))
 		return self._ignored_tokens
+
+	def parts_that_are_in_lexicon(self):
+		if self._parts_that_are_in_lexicon is None:
+			self._parts_that_are_in_lexicon = set(open("data/parts_that_are_in_lexicon.txt").read().split('\n'))
+		return self._parts_that_are_in_lexicon
 
 	def lem_dict(self):
 		if self._lem_dict is None:
