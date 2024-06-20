@@ -1,0 +1,13 @@
+zaaier
+motor
+regelaar
+stapelaar
+grijper
+cilinder
+bandje
+schermen
+riemen
+sateliet
+scanner
+kettingwiel
+zuignap
